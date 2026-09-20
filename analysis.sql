@@ -180,3 +180,95 @@ SELECT
     sum(e.salary) over (partition by d.department_name order by e.hire_date asc, e.employee_name asc) as cumulative_salary
 FROM EMPLOYEES e join DEPARTMENTS d using(department_id)
 order by d.department_name asc, cumulative_salary asc;
+
+
+-- =====================================================================
+-- Problem 11: Above-Average Departmental Salary Benchmark
+-- =====================================================================
+-- Management wants to identify high-cost departments. Write a query to 
+-- find all departments where the average employee salary is strictly higher 
+-- than the overall company-wide average salary.
+-- 
+-- Return:
+-- 1. Department name
+-- 2. The department's average salary (rounded to 2 decimal places)
+-- 3. The company-wide average salary for comparison (rounded to 2 decimal places)
+-- 
+-- Sort the final output by the department's average salary in descending order.
+WITH company_summary AS (
+    -- Calculate the overall company average once
+    SELECT ROUND(AVG(salary), 2) AS company_average 
+    FROM employees
+),
+dept_avg AS (
+    -- Calculate each department's average
+    SELECT 
+        d.department_name,
+        ROUND(AVG(e.salary), 2) AS department_average
+    FROM employees e 
+    JOIN departments d USING(department_id)
+    GROUP BY d.department_name
+)
+-- Compare department average against company average
+SELECT 
+    da.department_name,
+    da.department_average,
+    cs.company_average
+FROM dept_avg da
+CROSS JOIN company_summary cs
+WHERE da.department_average > cs.company_average
+ORDER BY da.department_average DESC;
+
+-- =====================================================================
+-- Problem 12: Project Allocation Audit (Unassigned Resources)
+-- =====================================================================
+-- Operations wants to audit staffing efficiency by finding all employees 
+-- who are currently not assigned to any projects.
+-- 
+-- Write a query to return:
+-- 1. Employee name
+-- 2. Employee salary
+-- 3. Department name
+-- 
+-- Use a LEFT JOIN (or NOT IN / NOT EXISTS) between employees, departments, 
+-- and employee_assignments to find those with zero project records.
+-- Sort the final output by employee salary in descending order.
+    
+    select 
+        e.employee_name,
+        e.salary,
+        d.department_name 
+    from employees e 
+    left join employee_assignments ea on e.employee_id = ea.employee_id
+    join departments d on e.department_id = d.department_id
+    where ea.assignment_id is null
+    order by e.salary desc;
+
+    -- =====================================================================
+-- Problem 13: Highest-Paid Employee per Department
+-- =====================================================================
+-- Executive leadership wants to know the single highest-paid employee 
+-- in each department. If there's a tie in salary, include all tied employees.
+-- 
+-- Write a query to return:
+-- 1. Department name
+-- 2. Employee name
+-- 3. Salary
+-- 
+-- Use a ranking window function (like RANK() or DENSE_RANK()) partitioned 
+-- by department and ordered by salary in descending order.
+-- Sort the final output by department name in ascending order.
+with salary_rank as (
+    select 
+        d.department_name,
+        e.employee_name,
+        e.salary,
+        dense_rank() over(partition by e.department_id order by salary desc) as emp_rank
+    from employees e join departments d using(department_id)
+)
+select 
+    department_name,
+    employee_name,
+    salary
+from salary_rank
+where emp_rank = 1;
